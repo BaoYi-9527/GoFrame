@@ -3,6 +3,7 @@ package gee
 import (
 	"log"
 	"net/http"
+	"strings"
 )
 
 // HandlerFunc 定义一个 request Handler 的类型
@@ -90,13 +91,33 @@ func (group *RouterGroup) POST(pattern string, handler HandlerFunc) {
 	group.addRoute("POST", pattern, handler)
 }
 
+// Use
+// @Description: 为路由组添加中间件
+// @receiver group
+// @param middlewares
+func (group *RouterGroup) Use(middlewares ...HandlerFunc) {
+	group.middlewares = append(group.middlewares, middlewares...)
+}
+
 // ServeHTTP
 // @Description: 实现 ServeHTTP
 // @receiver engine
 // @param w	 Response 返回
 // @param req Request 请求
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	var middlewares []HandlerFunc
+
+	// 为当前路由的上下文 Context 添加中间件
+	for _, group := range engine.groups {
+		// 如果当前路由包含 路由组的前缀就将路由组的中间件添加到路由的 上下文中
+		// 匹配前缀的时候是连带 / 的
+		if strings.HasPrefix(req.URL.Path, group.prefix) {
+			middlewares = append(middlewares, group.middlewares...)
+		}
+	}
+
 	c := newContext(w, req)
+	c.handlers = middlewares
 	engine.router.handle(c)
 }
 

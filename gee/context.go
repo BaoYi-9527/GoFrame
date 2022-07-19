@@ -18,6 +18,9 @@ type Context struct {
 	Params map[string]string
 	// 响应信息
 	StatusCode int
+	// middleware
+	handlers []HandlerFunc
+	index    int // index 记录当前执行到的中间件的索引
 }
 
 func (c *Context) Param(key string) string {
@@ -31,6 +34,18 @@ func newContext(w http.ResponseWriter, req *http.Request) *Context {
 		Req:    req,
 		Path:   req.URL.Path,
 		Method: req.Method,
+		index:  -1,
+	}
+}
+
+// Next
+// @Description: 调用中间件
+// @receiver c
+func (c *Context) Next() {
+	c.index++
+	s := len(c.handlers)
+	for ; c.index < s; c.index++ {
+		c.handlers[c.index](c)
 	}
 }
 
@@ -115,4 +130,9 @@ func (c *Context) HTML(code int, html string) {
 	c.SetHeader("Content-Type", "text/html")
 	c.Status(code)
 	c.Writer.Write([]byte(html))
+}
+
+func (c *Context) Fail(code int, err string) {
+	c.index = len(c.handlers)
+	c.JSON(code, H{"message": err})
 }

@@ -96,10 +96,15 @@ func (r *router) handle(c *Context) {
 	n, params := r.getRoute(c.Method, c.Path)
 
 	if n != nil {
-		c.Params = params
 		key := c.Method + "-" + n.pattern
-		r.handlers[key](c)
+		c.Params = params
+		// 将路由的处理 Handler 放在最后处理
+		c.handlers = append(c.handlers, r.handlers[key])
 	} else {
-		c.String(http.StatusNotFound, "404 NOT FOUND: %s\n", c.Path)
+		// 路由不存在也要走中间件
+		c.handlers = append(c.handlers, func(c *Context) {
+			c.String(http.StatusNotFound, "404 NOT FOUND: %s \n", c.Path)
+		})
 	}
+	c.Next()
 }
