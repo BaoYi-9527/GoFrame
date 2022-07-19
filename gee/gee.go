@@ -1,23 +1,55 @@
 package gee
 
 import (
+	"log"
 	"net/http"
 )
 
 // HandlerFunc 定义一个 request Handler 的类型
 type HandlerFunc func(c *Context)
 
+// RouterGroup
+// @Description: 路由分组
+type RouterGroup struct {
+	prefix      string        // 前缀
+	middlewares []HandlerFunc // 中间件
+	parent      *RouterGroup  // 支持嵌套
+	engine      *Engine       // 所有的分组共享一个 Engine 示例
+}
+
 // Engine
 // @Description: 实现了 ServeHTTP 的 Engine
 type Engine struct {
+	*RouterGroup
 	router *router
+	groups []*RouterGroup // 存储所有的分组
 }
 
 // New
 // @Description: Engine 构造器
 // @return *Engine
 func New() *Engine {
-	return &Engine{router: newRouter()}
+	engine := &Engine{router: newRouter()}             // 构造一个 Engine
+	engine.RouterGroup = &RouterGroup{engine: engine}  // 构造一个路由分组 并且注入 当前 Engine
+	engine.groups = []*RouterGroup{engine.RouterGroup} // 将当前 Engine 的路由分组 放入 Engine 的分组管理中
+	return engine
+}
+
+// Group
+// @Description: 定义一个新的路由分组
+// @PS: 所有路由分组共享一个 engine 所有分组都的 engine 都继承自父类 也就是都继承自根类
+// @receiver group
+// @param prefix
+// @return *RouterGroup
+func (group *RouterGroup) Group(prefix string) *RouterGroup {
+	engine := group.engine
+	newGroup := &RouterGroup{
+		prefix: prefix,
+		parent: group,
+		engine: engine,
+	}
+	engine.groups = append(engine.groups, newGroup)
+	return newGroup
 }
 
 // addRoute
@@ -30,12 +62,32 @@ func (engine *Engine) addRoute(method string, pattern string, handler HandlerFun
 	engine.router.addRoute(method, pattern, handler)
 }
 
+// addRoute
+// @Description: 分组新增路由
+// @receiver group
+// @param method
+// @param comp
+// @param handler
+func (group *RouterGroup) addRoute(method string, comp string, handler HandlerFunc) {
+	pattern := group.prefix + comp
+	log.Printf("Route %4s - %s", method, pattern)
+	group.engine.router.addRoute(method, pattern, handler)
+}
+
 func (engine *Engine) GET(pattern string, handler HandlerFunc) {
 	engine.addRoute("GET", pattern, handler)
 }
 
 func (engine *Engine) POST(pattern string, handler HandlerFunc) {
 	engine.addRoute("POST", pattern, handler)
+}
+
+func (group *RouterGroup) GET(pattern string, handler HandlerFunc) {
+	group.addRoute("GET", pattern, handler)
+}
+
+func (group *RouterGroup) POST(pattern string, handler HandlerFunc) {
+	group.addRoute("POST", pattern, handler)
 }
 
 // ServeHTTP
