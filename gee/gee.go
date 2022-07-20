@@ -1,8 +1,10 @@
 package gee
 
 import (
+	"html/template"
 	"log"
 	"net/http"
+	"path"
 	"strings"
 )
 
@@ -22,8 +24,10 @@ type RouterGroup struct {
 // @Description: 实现了 ServeHTTP 的 Engine
 type Engine struct {
 	*RouterGroup
-	router *router
-	groups []*RouterGroup // 存储所有的分组
+	router        *router
+	groups        []*RouterGroup     // 存储所有的分组
+	htmlTemplates *template.Template // HTML render
+	funcMap       template.FuncMap   // HTML render
 }
 
 // New
@@ -51,6 +55,53 @@ func (group *RouterGroup) Group(prefix string) *RouterGroup {
 	}
 	engine.groups = append(engine.groups, newGroup)
 	return newGroup
+}
+
+// createStaticHandler
+// @Description: 静态资源处理器
+// @receiver group
+// @param relativePath
+// @param fs
+// @return HandlerFunc
+func (group *RouterGroup) createStaticHandler(relativePath string, fs http.FileSystem) HandlerFunc {
+	absolutePath := path.Join(group.prefix, relativePath)
+	fileServer := http.StripPrefix(absolutePath, http.FileServer(fs))
+	return func(c *Context) {
+		file := c.Param("filepath")
+		// 检查文件是否存在 以及 权限是否通过
+		if _, err := fs.Open(file); err != nil {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		fileServer.ServeHTTP(c.Writer, c.Req)
+	}
+}
+
+// Static
+// @Description: 静态文件路由
+// @receiver group
+// @param relativePath
+// @param root
+func (group *RouterGroup) Static(relativePath string, root string) {
+	handler := group.createStaticHandler(relativePath, http.Dir(root))
+	urlPattern := path.Join(relativePath, "/*filepath")
+	group.GET(urlPattern, handler)
+}
+
+// SetFuncMap
+// @Description:
+// @receiver engine
+// @param funcMap
+func (engine *Engine) SetFuncMap(funcMap template.FuncMap) {
+	engine.funcMap = funcMap
+}
+
+// LoadHTMLGlob
+// @Description:
+// @receiver engine
+// @param pattern
+func (engine *Engine) LoadHTMLGlob(pattern string) {
+	engine.htmlTemplates = template.Must(template.New("").Funcs(engine.funcMap).ParseGlob(pattern))
 }
 
 // addRoute
@@ -118,6 +169,7 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	c := newContext(w, req)
 	c.handlers = middlewares
+	c.engine = engine // 注入 engine
 	engine.router.handle(c)
 }
 
