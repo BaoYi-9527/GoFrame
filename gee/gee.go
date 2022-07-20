@@ -40,6 +40,15 @@ func New() *Engine {
 	return engine
 }
 
+// Default
+// @Description: 默认使用 Logger 和 Recovery 中间件
+// @return *Engine
+func Default() *Engine {
+	engine := New()
+	engine.Use(Logger(), Recovery())
+	return engine
+}
+
 // Group
 // @Description: 定义一个新的路由分组
 // @PS: 所有路由分组共享一个 engine 所有分组都的 engine 都继承自父类 也就是都继承自根类

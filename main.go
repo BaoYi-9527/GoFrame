@@ -20,9 +20,12 @@ func FormatAsDate(t time.Time) string {
 }
 
 func main() {
-	r := gee.New()
-	// 全局中间件
-	r.Use(gee.Logger())
+	r := gee.Default()
+
+	r.GET("/panic", func(c *gee.Context) {
+		names := []string{"geektutu"}
+		c.String(http.StatusOK, names[100])
+	})
 
 	r.SetFuncMap(template.FuncMap{
 		"FormatAsDate": FormatAsDate,
@@ -34,7 +37,7 @@ func main() {
 	stu2 := &student{Name: "Jack", Age: 22}
 
 	r.GET("/", func(c *gee.Context) {
-		c.HTML(http.StatusOK, "css.tmpl", nil)
+		c.String(http.StatusOK, "Hello Geektutu\n")
 	})
 
 	r.GET("/students", func(c *gee.Context) {
