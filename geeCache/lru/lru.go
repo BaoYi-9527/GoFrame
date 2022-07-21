@@ -1,4 +1,6 @@
-package geeCache
+// Package lru
+// @Description: lru 缓存淘汰策略
+package lru
 
 import "container/list"
 

@@ -1,4 +1,4 @@
-package geeCache
+package lru
 
 import (
 	"reflect"
