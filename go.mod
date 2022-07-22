@@ -3,6 +3,7 @@ module example
 go 1.17
 
 require gee v0.0.0
+require geeCache v0.0.0
 
 require (
 	github.com/cosmtrek/air v1.40.4 // indirect
@@ -17,3 +18,4 @@ require (
 )
 
 replace gee v0.0.0 => ./gee
+replace geeCache v0.0.0 => ./geeCache

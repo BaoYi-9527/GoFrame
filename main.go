@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"gee"
+	"geeCache"
 	"html/template"
 	"log"
 	"net/http"
@@ -14,12 +15,42 @@ type student struct {
 	Age  int8
 }
 
+var db = map[string]string{
+	"Tom":  "630",
+	"Jack": "589",
+	"Sam":  "567",
+}
+
 func FormatAsDate(t time.Time) string {
 	year, month, day := t.Date()
 	return fmt.Sprintf("%d-%02d-%02d", year, month, day)
 }
 
 func main() {
+	//webHttpListen()
+	cacheHttpListen()
+}
+
+// cacheHttpListen
+// @Description: geeCache 服务注册与监听
+func cacheHttpListen() {
+	geeCache.NewGroup("scores", 2<<10, geeCache.GetterFunc(
+		func(key string) ([]byte, error) {
+			log.Println("[SlowDB] search key:", key)
+			if v, ok := db[key]; ok {
+				return []byte(v), nil
+			}
+			return nil, fmt.Errorf("%s not exists", key)
+		}))
+	addr := "localhost:9998"
+	peers := geeCache.NewHTTPPool(addr)
+	log.Println("geeCache is running at", addr)
+	log.Fatal(http.ListenAndServe(addr, peers))
+}
+
+// webHttpListen
+// @Description: gee 服务注册监听
+func webHttpListen() {
 	r := gee.Default()
 
 	r.GET("/panic", func(c *gee.Context) {
